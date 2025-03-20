@@ -49,7 +49,7 @@ def remove_satisfied_advertisers(advertisers):
 def simulate_bidding(advertisers, num_time_slots, initial_impression_estimate):
     total_reward = 0
     estimated_impressions = []
-    actual_impressions = get_actual_impressions()
+    actual_impressions = TrafficSimulator().get_actual_impressions(num_time_slots)
     advertisers_greedy = advertisers
     # Store original minimum impressions for each advertiser
     original_min_impressions = {adv.name: adv.min_impressions for adv in advertisers}
