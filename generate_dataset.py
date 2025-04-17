@@ -11,49 +11,43 @@ num_entries = 10000
 # Generate data
 data = {
     'AdvertiserId': list(range(1, num_entries + 1)),
-    'Minimum_Impressions': np.random.randint(1000, 5001, num_entries),
-    'Budget': np.round(np.random.uniform(100.0, 500.0, num_entries), 1),
-    'Bid': np.round(np.random.uniform(0.1, 2.0, num_entries), 2),
-    'Reward': [],
+    'Minimum_Impressions': np.random.randint(500, 10001, num_entries),
+    'Budget': np.random.randint(10000, 25001, num_entries),
+    'Bid': np.random.randint(1, 101, num_entries),
+    'Reward': np.random.randint(10000, 25001, num_entries),
     'Performance': np.round(np.clip(np.random.normal(0.6, 0.15, num_entries), 0, 1), 2)
 }
-
-# Calculate Reward based on logic: Minimum_Impressions × reward_per_impression
-for i in range(num_entries):
-    reward_per_impression = round(random.uniform(0.05, 0.30), 2)
-    reward = round(data['Minimum_Impressions'][i] * reward_per_impression, 1)
-    data['Reward'].append(reward)
 
 # Scale up the edge cases proportionally (10x)
 # Edge case 1: Minimum bids (0.1)
 min_bid_indices = random.sample(range(num_entries), 200)
 for idx in min_bid_indices:
-    data['Bid'][idx] = 0.1
+    data['Bid'][idx] = 1
 
 # Edge case 2: Maximum bids (2.0)
 max_bid_indices = random.sample(range(num_entries), 200)
 for idx in max_bid_indices:
-    data['Bid'][idx] = 2.0
+    data['Bid'][idx] = 100
 
 # Edge case 3: Minimum impressions (exactly 1000)
 min_imp_indices = random.sample(range(num_entries), 300)
 for idx in min_imp_indices:
-    data['Minimum_Impressions'][idx] = 1000
+    data['Minimum_Impressions'][idx] = 500
 
 # Edge case 4: Maximum impressions (exactly 5000)
 max_imp_indices = random.sample(range(num_entries), 300)
 for idx in max_imp_indices:
-    data['Minimum_Impressions'][idx] = 5000
+    data['Minimum_Impressions'][idx] = 10000
 
 # Edge case 5: Minimum budget (exactly 100.0)
 min_budget_indices = random.sample(range(num_entries), 250)
 for idx in min_budget_indices:
-    data['Budget'][idx] = 100.0
+    data['Budget'][idx] = 10000
 
 # Edge case 6: Maximum budget (exactly 500.0)
 max_budget_indices = random.sample(range(num_entries), 250)
 for idx in max_budget_indices:
-    data['Budget'][idx] = 500.0
+    data['Budget'][idx] = 25000
 
 # Edge case 7: Extreme performance values (0.0 and 1.0)
 min_perf_indices = random.sample(range(num_entries), 150)
@@ -64,17 +58,15 @@ max_perf_indices = random.sample(range(num_entries), 150)
 for idx in max_perf_indices:
     data['Performance'][idx] = 1.0
 
-# Edge case 8: Minimum reward_per_impression (exactly 0.05)
+# Edge case 8: Minimum reward (exactly 10000)
 min_reward_indices = random.sample(range(num_entries), 200)
 for idx in min_reward_indices:
-    reward_per_impression = 0.05
-    data['Reward'][idx] = round(data['Minimum_Impressions'][idx] * reward_per_impression, 1)
+    data['Reward'][idx] = 10000
 
-# Edge case 9: Maximum reward_per_impression (exactly 0.30)
+# Edge case 9: Maximum reward (exactly 25000)
 max_reward_indices = random.sample(range(num_entries), 200)
 for idx in max_reward_indices:
-    reward_per_impression = 0.30
-    data['Reward'][idx] = round(data['Minimum_Impressions'][idx] * reward_per_impression, 1)
+    data['Reward'][idx] = 25000
 
 # Additional variations to increase variability
 # Add some high-variance clusters
@@ -84,13 +76,14 @@ for i in range(5):
     cluster_end = cluster_start + cluster_size
     
     # Create a cluster with specific characteristics
-    cluster_bid = round(random.uniform(0.3, 1.8), 2)
+    cluster_bid = round(random.uniform(1.0, 1.8), 2)  # Ensure minimum bid is at least 1.0
     cluster_impression_base = random.randint(1500, 4500)
     cluster_budget_base = random.randint(150, 450)
     
     for j in range(cluster_start, cluster_end):
         variation = random.uniform(0.8, 1.2)  # 20% variation
-        data['Bid'][j] = round(cluster_bid * variation, 2)
+        bid_value = round(cluster_bid * variation, 2)
+        data['Bid'][j] = max(1, bid_value)  # Clamp bid value to a minimum of 1
         data['Minimum_Impressions'][j] = int(cluster_impression_base * variation)
         data['Budget'][j] = round(cluster_budget_base * variation, 1)
 
@@ -104,14 +97,22 @@ df.to_csv('advertiser_data_10k.csv', index=False)
 print(df.head(10))
 
 # Count edge cases
-print(f"\nEntries with minimum bid (0.1): {len(df[df['Bid'] == 0.1])}")
-print(f"Entries with maximum bid (2.0): {len(df[df['Bid'] == 2.0])}")
-print(f"Entries with minimum impressions (1000): {len(df[df['Minimum_Impressions'] == 1000])}")
-print(f"Entries with maximum impressions (5000): {len(df[df['Minimum_Impressions'] == 5000])}")
+print(f"\nEntries with minimum bid (1): {len(df[df['Bid'] == 1])}")
+print(f"Entries with maximum bid (100): {len(df[df['Bid'] == 100])}")
+print(f"Entries with minimum impressions (500): {len(df[df['Minimum_Impressions'] == 500])}")
+print(f"Entries with maximum impressions (10000): {len(df[df['Minimum_Impressions'] == 10000])}")
 print(f"Entries with minimum performance (0.0): {len(df[df['Performance'] == 0.0])}")
 print(f"Entries with maximum performance (1.0): {len(df[df['Performance'] == 1.0])}")
-print(f"Entries with minimum budget (100.0): {len(df[df['Budget'] == 100.0])}")
-print(f"Entries with maximum budget (500.0): {len(df[df['Budget'] == 500.0])}")
+print(f"Entries with minimum budget (10000): {len(df[df['Budget'] == 10000])}")
+print(f"Entries with maximum budget (25000): {len(df[df['Budget'] == 25000])}")
+print(f"Entries with minimum reward (10000): {len(df[df['Reward'] == 10000])}")
+print(f"Entries with maximum reward (25000): {len(df[df['Reward'] == 25000])}")
+
+# Verify that all bid values are at least 1
+if (df['Bid'] < 1).any():
+    print("There are still invalid bid values.")
+else:
+    print("All bid values are valid (no values below 1).")
 
 # Print basic statistics
 print("\nBasic Statistics:")

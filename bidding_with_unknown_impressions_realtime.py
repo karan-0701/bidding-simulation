@@ -82,11 +82,10 @@ def allocate(advertisers, index, impressions):
         return return_val
     return 0
 
-def check_satisfaction(advertisers, remaining_advertisers, total_revenue):
+def check_satisfaction(advertisers, remaining_advertisers):
     for adv in remaining_advertisers:
         if adv.remaining <= 0:
             advertisers[adv.name] = adv
-            total_revenue += adv.calculate_revenue()
             remaining_advertisers.remove(adv)
             print(f"Advertiser {adv.name} has met minimum impressions!")
 
@@ -120,19 +119,18 @@ def simulate_bidding(advertisers, num_time_slots, initial_impression_estimate, t
         actual = actual_impressions[time_slot]
         estimated = estimated_impressions[time_slot]
         print(f"Actual Impressions: {actual}, Estimated Impressions: {estimated}")
+        if remaining_advertisers:
+            estimated_allocation = get_estimated_allocation(remaining_advertisers, estimated, time_slot)
+            print(f"Estimated Allocation: {estimated_allocation}")
 
         while actual>0 and sim_running:
             if remaining_advertisers:
-                estimated_allocation = get_estimated_allocation(remaining_advertisers, estimated, time_slot)
-                print(f"Estimated Allocation: {estimated_allocation}")
-                
                 for i in range(0, len(remaining_advertisers)):
                     if(estimated_allocation[i] > 0 and actual > 0):
                         val = min(estimated_allocation[i], actual)
                         return_val = allocate(remaining_advertisers, i, val)
                         actual = actual - val + return_val
-
-                check_satisfaction(advertisers, remaining_advertisers, total_revenue)
+                check_satisfaction(advertisers, remaining_advertisers)
             else:
                 winning_adv, winning_bid = gpg(advertisers)
                 if winning_adv:
