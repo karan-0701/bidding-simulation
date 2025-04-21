@@ -3,13 +3,13 @@ import random
 from traffic_simulator import TrafficSimulator
 
 NUM_TIME_SLOTS = 24
-MIN_IMPRESSIONS = 1000
-MAX_IMPRESSIONS = 5000
+MIN_IMPRESSIONS = 250
+MAX_IMPRESSIONS = 750
 PEAK_START = 9
 PEAK_END = 17
 PEAK_AMPLITUDE = 1.2
 
-DECAY_RATE = 0.01
+DECAY_RATE = 0.1
 ALPHA = 0.7
 BETA = 0.15
 
@@ -31,17 +31,17 @@ class Advertiser:
     
     # Calculate revenue for the advertiser
     def calculate_revenue(self):
-        total = self.bid * self.allocated
+        total = 0
         if self.allocated >= self.min:
-            total + self.reward
+            total += (self.bid * self.allocated) + self.reward
         return total
 
 def init_advertisers():
     return {
-        "A": Advertiser("A", 25, 250, 20000, 100), 
-        "B": Advertiser("B", 24, 240, 15000, 100), 
-        "C": Advertiser("C", 12, 125, 10000, 50),  
-        "D": Advertiser("D", 30, 150, 5000, 0) 
+        "A": Advertiser("A", 25, 250, 10000, 100), 
+        "B": Advertiser("B", 24, 240, 2000, 100), 
+        "C": Advertiser("C", 12, 125, 2000, 50),  
+        "D": Advertiser("D", 30, 150, 2000, 0) 
     }
 
 # Sort advertisers by expected revenue of meeting minimum impressions
@@ -64,6 +64,8 @@ def decay_probability(time_slot, decay_rate=DECAY_RATE):
 def get_estimated_allocation(advertisers, estimated, time_slot):
     allocation = []
     decayed = int(estimated * decay_probability(time_slot))
+    if decayed <= 0:
+        decayed = 1
     first_adv = min(decayed, advertisers[0].remaining)
     allocation.append(first_adv)
     impressions_left = estimated - first_adv + (decayed-first_adv)
@@ -78,12 +80,12 @@ def allocate(advertisers, index, impressions):
         advertisers[index].allocated += val
         advertisers[index].remaining -= val
         return_val = impressions - val
-        print(f"Allocated {val} impressions (out of {impressions}) to {advertisers[index].name}")
+        #print(f"Allocated {val} impressions (out of {impressions}) to {advertisers[index].name}")
         return return_val
     return 0
 
 def check_satisfaction(advertisers, remaining_advertisers):
-    for adv in remaining_advertisers:
+    for adv in remaining_advertisers.copy():
         if adv.remaining <= 0:
             advertisers[adv.name] = adv
             remaining_advertisers.remove(adv)
@@ -106,7 +108,7 @@ def gpg(advertisers):
     else:
         return None, 0
 
-def simulate_bidding(advertisers, num_time_slots, initial_impression_estimate, traffic):
+def simulate_bidding(advertisers, num_time_slots, initial_impression_estimate, traffic, run_gpg=True):
     sim_running = True
     sorted_advertisers = sort_advertisers(advertisers)
     remaining_advertisers = sorted_advertisers.copy()
@@ -131,7 +133,7 @@ def simulate_bidding(advertisers, num_time_slots, initial_impression_estimate, t
                         return_val = allocate(remaining_advertisers, i, val)
                         actual = actual - val + return_val
                 check_satisfaction(advertisers, remaining_advertisers)
-            else:
+            elif run_gpg:
                 winning_adv, winning_bid = gpg(advertisers)
                 if winning_adv:
                     actual -= 1
@@ -140,6 +142,9 @@ def simulate_bidding(advertisers, num_time_slots, initial_impression_estimate, t
                 else:
                     print(f"All advertisers have reached their maximum impressions!")
                     sim_running = False
+            else:
+                # print(f"GPG disabled!")
+                sim_running = False
             
     for advertiser in advertisers.values():
         total_revenue += advertiser.calculate_revenue()
@@ -155,7 +160,7 @@ def main():
     advertisers = init_advertisers()
     initial_impression_estimate = 2500
     traffic = TrafficSimulator(MIN_IMPRESSIONS, MAX_IMPRESSIONS, PEAK_START, PEAK_END, PEAK_AMPLITUDE)
-    revenue = simulate_bidding(advertisers, NUM_TIME_SLOTS, initial_impression_estimate, traffic)
+    revenue = simulate_bidding(advertisers, NUM_TIME_SLOTS, initial_impression_estimate, traffic, False)
     print("\n--- SIMULATION SUMMARY ---")
     print(f"Total revenue: {revenue}")
     for advertiser in advertisers.values():

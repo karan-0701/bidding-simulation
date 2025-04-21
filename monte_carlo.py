@@ -9,17 +9,17 @@ from tqdm import tqdm
 
 #default simulation hyperparameters
 NUM_TIME_SLOTS = 24
-MIN_IMPRESSIONS = 1000
-MAX_IMPRESSIONS = 5000
+MIN_IMPRESSIONS = 100
+MAX_IMPRESSIONS = 500
 PEAK_START = 9
 PEAK_END = 17
 PEAK_AMPLITUDE = 1.2
 DECAY_RATE = 0.01
 ALPHA = 0.7
 BETA = 0.15
-NUM_SIMULATIONS = 500
-MIN_ADV = 10
-MAX_ADV = 50
+NUM_SIMULATIONS = 100
+MIN_ADV = 5
+MAX_ADV = 10
 
 # Class to represent an advertiser
 class Advertiser:
@@ -42,9 +42,9 @@ class Advertiser:
     
     # Calculate revenue for the advertiser
     def calculate_revenue(self):
-        total = self.bid * self.allocated
+        total = 0
         if self.allocated >= self.min:
-            total += self.reward
+            total += (self.bid * self.allocated) + self.reward
         return total
 
 #class to simulate the bidding process
@@ -133,12 +133,12 @@ class BiddingSimulator:
         else:
             return None, 0
 
-    def simulate_bidding(self, advertisers, num_time_slots, initial_impression_estimate):
+    def simulate_bidding(self, advertisers, num_time_slots, initial_impression_estimate, actual_impressions):
         sim_running = True
         sorted_advertisers = self.sort_advertisers(advertisers)
         remaining_advertisers = sorted_advertisers.copy()
         total_revenue = 0
-        actual_impressions = self.traffic.get_actual_impressions(num_time_slots)
+        # actual_impressions = self.traffic.get_actual_impressions(num_time_slots)
         estimated_impressions = self.get_estimated_impressions(actual_impressions, initial_impression_estimate)
 
         for time_slot in range(num_time_slots):
@@ -175,11 +175,11 @@ class BiddingSimulator:
             total_revenue += advertiser.calculate_revenue()
         return total_revenue
         
-    def run_simulation(self, num_time_slots=NUM_TIME_SLOTS, initial_impression_estimate=2500, custom_advertisers=None, run_gpg=True, decay_rate=DECAY_RATE):
+    def run_simulation(self, num_time_slots=NUM_TIME_SLOTS, initial_impression_estimate=2500, custom_advertisers=None, run_gpg=True, decay_rate=DECAY_RATE, actual_impressions=None):
         advertisers = custom_advertisers if custom_advertisers else self.init_advertisers()
         self.decay_rate = decay_rate
         self.run_gpg = run_gpg
-        revenue = self.simulate_bidding(advertisers, num_time_slots, initial_impression_estimate)
+        revenue = self.simulate_bidding(advertisers, num_time_slots, initial_impression_estimate, actual_impressions)
         #print(f"Total revenue: {revenue}")
         # for advertiser in advertisers.values():
         #     print(advertiser)
@@ -214,44 +214,30 @@ class MonteCarloSimulation:
                 min_impressions = row['Minimum_Impressions']
                 reward = row['Reward']
                 
-                converted_advertisers[name] = Advertiser(
-                    name=name,
-                    bid=bid,
-                    budget=budget,
-                    min=min_impressions,
-                    reward=reward
-                )
+                converted_advertisers[name] = Advertiser(name=name,bid=bid,budget=budget,min=min_impressions,reward=reward)
 
-            best_decay_factor = 0
+            best_decay_factor = -1
             max_reward = -float('inf')
-            indiv_results = {}
-            
+            actual_impressions = self.bidding_simulator.traffic.get_actual_impressions(NUM_TIME_SLOTS)
+
             # Test different decay factors
             for decay_factor in decay_factor_range:
                 #print(f"\nDecay Factor: {decay_factor}")
                 advertisers_copy = copy.deepcopy(converted_advertisers)
-                reward, simulated_advertisers = self.bidding_simulator.run_simulation(custom_advertisers=advertisers_copy, run_gpg=False, decay_rate=decay_factor)
+                reward, simulated_advertisers = self.bidding_simulator.run_simulation(custom_advertisers=advertisers_copy, run_gpg=False, decay_rate=decay_factor, actual_impressions=actual_impressions)
                 del advertisers_copy
                 del simulated_advertisers
-                if reward > max_reward:
+                if reward >= max_reward:
                     max_reward = reward
                     best_decay_factor = decay_factor
-                indiv_results[decay_factor] = reward
-            
+
             # Save the result for this simulation
             results.append({
                 'advertiser_ids': sampled_advertisers['AdvertiserId'].tolist(),
                 'best_decay_factor': best_decay_factor,
                 'max_reward': max_reward,
-                'decay_factor_results': indiv_results,
             })
             
-            # del converted_advertisers
-            # del sampled_advertisers
-            # del indiv_results
-            
-
-
         # Save results to a file
         output_file = 'monte_carlo_results.csv'
         results_df = pd.DataFrame(results)
